@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pb.synth/schemas/gcam-fund-allocation-input.json",
+  "title": "GCAM Fund allocation inbound",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "messageKind": {
+      "type": "string",
+      "const": "fund-allocation",
+      "description": "Discriminator when wrapping raw GCAM body"
+    },
+    "fundAllocationId": {
+      "type": "integer",
+      "description": "Source: fundAllocationId → swapDataProduct.transactions[].allocationId",
+      "x-oas-property": "allocationId"
+    },
+    "transactionId": {
+      "type": "string",
+      "description": "Source: transactionId → tradingReportId",
+      "x-oas-property": "tradingReportId"
+    },
+    "tradeIdString": {
+      "type": "string",
+      "description": "Source: tradeIdString → ContractIdentifier",
+      "x-oas-property": "ContractIdentifier"
+    },
+    "ApprovingTrader": {
+      "type": "string",
+      "x-oas-property": "approvingTraderName"
+    },
+    "book": {
+      "type": "string",
+      "x-oas-property": "books"
+    },
+    "brokerSDSID": {
+      "type": "string",
+      "x-oas-property": "brokerSdsId"
+    },
+    "clientRefId": {
+      "type": "string",
+      "x-oas-property": "ClientRefId"
+    },
+    "clientUnwindIndicator": {
+      "type": "string",
+      "x-oas-property": "ClientUnwindIndicator"
+    },
+    "initialCollateralPct": {
+      "type": "integer",
+      "x-oas-property": "collateralPercentage"
+    },
+    "commission": {
+      "type": "string",
+      "x-oas-property": "Commission"
+    },
+    "commissionRate": {
+      "type": "string",
+      "x-oas-property": "CommissionRate"
+    },
+    "commissionRateType": {
+      "type": "string",
+      "x-oas-property": "commissionRateType"
+    },
+    "corporateActionType": {
+      "type": "string",
+      "x-oas-property": "CorporationActionType"
+    },
+    "creditApproval": {
+      "type": "string",
+      "x-oas-property": "creditApproval"
+    },
+    "creditApprovalName": {
+      "type": "string",
+      "x-oas-property": "creditApprovalName"
+    },
+    "creditApprovalNumber": {
+      "type": "integer",
+      "x-oas-property": "creditApprovalNumber"
+    },
+    "settlementDate": {
+      "type": "string",
+      "format": "date",
+      "x-oas-property": "dateOfSettlement"
+    },
+    "quantity": {
+      "type": "integer",
+      "x-oas-property": "tradeQuantity"
+    },
+    "price": {
+      "type": "number",
+      "x-oas-property": "tradeNetPrice"
+    },
+    "buySell": {
+      "type": "string",
+      "x-oas-property": "actionbuysell"
+    },
+    "activeTrade": {
+      "type": "boolean",
+      "x-oas-property": "activeTrading"
+    },
+    "securityId": {
+      "type": "string",
+      "description": "Used for enrichment lookup",
+      "x-oas-property": "ricCode"
+    }
+  }
+}

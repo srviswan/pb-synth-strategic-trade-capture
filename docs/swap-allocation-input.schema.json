@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pb.synth/schemas/gcam-swap-allocation-input.json",
+  "title": "GCAM Swap allocation inbound",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "messageKind": {
+      "type": "string",
+      "const": "swap-allocation",
+      "description": "Discriminator when wrapping raw GCAM body"
+    },
+    "tradeIdString": {
+      "type": "string",
+      "description": "Source: tradeIdString → ContractIdentifier",
+      "x-oas-property": "ContractIdentifier"
+    },
+    "accrueInterestOnPT": {
+      "type": "boolean",
+      "x-oas-property": "accrueInterestOnPartialUnwinds"
+    },
+    "addCommissionToPrice": {
+      "type": "boolean",
+      "x-oas-property": "addCommissionToPrice"
+    },
+    "barcapBreakRights": {
+      "type": "string",
+      "x-oas-property": "barclaysBreakableRights"
+    },
+    "barcapNumDays": {
+      "type": "string",
+      "x-oas-property": "barclaysBreakableRightsNoOfDays"
+    },
+    "barclaysBreakFee": {
+      "type": "string",
+      "x-oas-property": "barclaysBreakFee"
+    },
+    "barclaysBreakFeeType": {
+      "type": "string",
+      "x-oas-property": "barclaysBreakFeeType"
+    },
+    "businessRepBRID": {
+      "type": "string",
+      "x-oas-property": "barclaysRepresentativeBrid"
+    },
+    "businessRep": {
+      "type": "string",
+      "x-oas-property": "barclaysRepresentativeName"
+    },
+    "legalEntity": {
+      "type": "string",
+      "x-oas-property": "bookEntity"
+    },
+    "clientBreakRights": {
+      "type": "string",
+      "x-oas-property": "clientBreakableRights"
+    },
+    "clientNumDays": {
+      "type": "string",
+      "x-oas-property": "clientBreakableRightsNoOfDays"
+    },
+    "clientBreakFee": {
+      "type": "string",
+      "x-oas-property": "clientBreakFee"
+    },
+    "clientBreakFeeType": {
+      "type": "string",
+      "x-oas-property": "clientBreakFeeType"
+    },
+    "initialCollateralType": {
+      "type": "string",
+      "x-oas-property": "confirmationType"
+    },
+    "docType": {
+      "type": "string",
+      "x-oas-property": "ConfirmationType"
+    },
+    "equityLegPaymentGap": {
+      "type": "string",
+      "x-oas-property": "equityLegPaymentGap"
+    },
+    "equityMarketSettlementDays": {
+      "type": "string",
+      "x-oas-property": "equityMarketSettlementDays"
+    },
+    "equityPaymentCalendar": {
+      "type": "string",
+      "x-oas-property": "equityPaymentBusinessCalendar"
+    },
+    "equityPaymentConvention": {
+      "type": "string",
+      "x-oas-property": "equityPaymentConvention"
+    },
+    "interestRateType": {
+      "type": "string",
+      "x-oas-property": "Financing"
+    },
+    "interestFixedNotional": {
+      "type": "boolean",
+      "x-oas-property": "fixedInterestNotional"
+    },
+    "interestPaymentCalendar": {
+      "type": "string",
+      "x-oas-property": "fundingPaymentBusinessCalendar"
+    },
+    "interestResetCalendar": {
+      "type": "string",
+      "x-oas-property": "fundingResetBusinessCalendar"
+    },
+    "maturityDate": {
+      "type": "string",
+      "format": "date",
+      "x-oas-property": "swapMaturityDate"
+    },
+    "swapCurrency": {
+      "type": "string",
+      "x-oas-property": "swapCurrency"
+    },
+    "longShortInd": {
+      "type": "string",
+      "x-oas-property": "SwapLongShort"
+    },
+    "docAssetType": {
+      "type": "string",
+      "x-oas-property": "SwapAssetType"
+    },
+    "counterParty": {
+      "type": "string",
+      "x-oas-property": "tradeParty1Name"
+    },
+    "counterPartyId": {
+      "type": "string",
+      "x-oas-property": "tradeParty1SdsId"
+    },
+    "party": {
+      "type": "string",
+      "x-oas-property": "tradeParty2Name"
+    },
+    "partyId": {
+      "type": "string",
+      "x-oas-property": "tradeParty2SdsId"
+    },
+    "traderId": {
+      "type": "string",
+      "x-oas-property": "traderName"
+    },
+    "securityId": {
+      "type": "string",
+      "description": "Used for enrichment lookup"
+    }
+  }
+}

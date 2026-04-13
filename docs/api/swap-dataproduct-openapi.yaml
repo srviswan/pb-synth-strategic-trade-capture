@@ -1,0 +1,429 @@
+openapi: 3.0.3
+info:
+  title: Swap blotter & data product (GCAM → lifecycle)
+  description: |
+    **Trade capture** emits a **SwapBlotter** (deduplicated graph) to the **swap lifecycle service**, which
+    creates/updates the persisted **SwapContract**. Hierarchy: **BusinessEvent** (envelope) → `payload` **SwapBlotter**
+    → `swapContracts[]` (1:M) → each **SwapPosition** (1:M) → each **SwapTransaction** (1:M). For a **first trade**,
+    `ContractIdentifier` / upstream `tradeIdString` may be absent until the lifecycle service assigns them; use
+    `captureCorrelationId` and tree structure until ids exist. Aligns with GCAM → dataproduct field mappings.
+  version: 1.3.0
+
+paths:
+  /swapContracts:
+    get:
+      summary: List swap contracts
+      operationId: listSwapContracts
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SwapContract'
+  /swapContracts/{contractIdentifier}/positions:
+    post:
+      summary: Create position for a contract
+      operationId: createPosition
+      parameters:
+        - $ref: '#/components/parameters/contractIdentifier'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SwapPosition'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SwapPosition'
+  /swapContracts/{contractIdentifier}/positions/{positionId}/transactions:
+    get:
+      summary: List transactions for a position
+      operationId: listTransactions
+      parameters:
+        - $ref: '#/components/parameters/contractIdentifier'
+        - $ref: '#/components/parameters/positionId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SwapTransaction'
+    post:
+      summary: Create transaction for a position
+      operationId: createTransaction
+      parameters:
+        - $ref: '#/components/parameters/contractIdentifier'
+        - $ref: '#/components/parameters/positionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SwapTransaction'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SwapTransaction'
+  /businessEvents:
+    get:
+      summary: List business events (async exchange outbox)
+      operationId: listBusinessEvents
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BusinessEvent'
+    post:
+      summary: Publish business event to Solace queue for async data exchange
+      operationId: publishBusinessEvent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BusinessEvent'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessEvent'
+  /businessEvents/{eventId}:
+    get:
+      summary: Get a business event by id
+      operationId: getBusinessEvent
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessEvent'
+
+components:
+  parameters:
+    contractIdentifier:
+      name: contractIdentifier
+      in: path
+      required: true
+      schema:
+        type: string
+    positionId:
+      name: positionId
+      in: path
+      required: true
+      schema:
+        type: string
+
+  schemas:
+    SwapContract:
+      type: object
+      description: |
+        Swap contract economic and legal snapshot (subset; additional GCAM-mapped fields may be added).
+        **Positions** are the only child collection on the contract (1:M). Each **SwapPosition** nests its
+        **SwapTransaction** rows (1:M). Do not duplicate transactions at contract level.
+        **ContractIdentifier** may be omitted on the first trade until the **lifecycle service** allocates it after
+        consuming the **SwapBlotter**; until then correlate via blotter-level `captureCorrelationId` and nested keys.
+      properties:
+        ContractIdentifier:
+          type: string
+          description: Lifecycle-assigned contract id (e.g. former GCAM `tradeIdString`). Optional pre-lifecycle.
+          example: L516783SS
+        desk:
+          type: string
+        execSource:
+          type: string
+          example: GCAM
+        executionDateTime:
+          type: string
+          format: date
+        swapCurrency:
+          type: string
+        SwapLongShort:
+          type: string
+        swapMaturityDate:
+          type: string
+          format: date
+        SwapAssetType:
+          type: string
+        tradeParty1Name:
+          type: string
+        tradeParty1SdsId:
+          type: string
+        tradeParty2Name:
+          type: string
+        tradeParty2SdsId:
+          type: string
+        traderName:
+          type: string
+        Financing:
+          type: string
+        fixedInterestNotional:
+          type: boolean
+        barclaysBreakableRights:
+          type: string
+        clientBreakableRights:
+          type: string
+        bookEntity:
+          type: string
+        equityLegPaymentGap:
+          type: string
+        equityPaymentBusinessCalendar:
+          type: string
+        equityPaymentConvention:
+          type: string
+        fundingPaymentBusinessCalendar:
+          type: string
+        fundingResetBusinessCalendar:
+          type: string
+        ricCode:
+          type: string
+        tradeCurrency:
+          type: string
+        settlementCurrency:
+          type: string
+        tradeQuantity:
+          type: integer
+        tradeNetPrice:
+          type: number
+          format: double
+        netNotional:
+          type: number
+          format: double
+        positions:
+          type: array
+          description: Positions for this contract; each entry owns its transactions (1:M).
+          items:
+            $ref: '#/components/schemas/SwapPosition'
+
+    SwapPosition:
+      type: object
+      description: |
+        Position under a swap contract (1:M from contract). Holds all **SwapTransaction** rows for this position (1:M).
+        **contractIdentifier** MAY be omitted when embedded under a **SwapContract** whose `ContractIdentifier` is not
+        yet assigned; bind by parent contract in the **SwapBlotter** tree. Include when emitting granular payloads.
+      required:
+        - positionId
+      properties:
+        contractIdentifier:
+          type: string
+          description: Mirrors parent contract id when known; optional pre-lifecycle when nested under a provisional contract.
+        positionId:
+          type: string
+          example: POS-000123
+        positionNotional:
+          type: number
+          format: double
+        positionQuantity:
+          type: number
+          format: double
+        transactions:
+          type: array
+          description: Allocations / bookings belonging to this position only (single copy; no contract-level mirror).
+          items:
+            $ref: '#/components/schemas/SwapTransaction'
+
+    SwapTransaction:
+      type: object
+      description: Transaction under a position. When nested under **SwapPosition.transactions**, `positionId` SHOULD match the parent.
+      required:
+        - tradingReportId
+      properties:
+        positionId:
+          type: string
+          description: Parent position; required when payload is granular (not nested); SHOULD equal enclosing position when nested.
+          example: POS-000123
+        tradingReportId:
+          type: string
+          example: G202604021298104776
+        actionbuysell:
+          type: string
+        activeTrading:
+          type: boolean
+        allocationId:
+          type: integer
+        approvingTraderName:
+          type: string
+        books:
+          type: string
+        brokerSdsId:
+          type: string
+        ClientRefId:
+          type: string
+        ClientUnwindIndicator:
+          type: string
+        collateralPercentage:
+          type: integer
+        Commission:
+          type: string
+        CommissionRate:
+          type: string
+        commissionRateType:
+          type: string
+        CorporationActionType:
+          type: string
+        creditApproval:
+          type: string
+        creditApprovalName:
+          type: string
+        creditApprovalNumber:
+          type: integer
+        dateOfSettlement:
+          type: string
+          format: date
+        tradeQuantity:
+          type: integer
+        tradeNetPrice:
+          type: number
+          format: double
+
+    SwapBlotter:
+      type: object
+      description: |
+        **Egress from trade capture** to the **swap lifecycle service**: deduplicated **SwapContract** → **SwapPosition**
+        → **SwapTransaction** graph (`swapContracts[]`, length ≥ 1). The lifecycle service materialises or updates
+        the canonical swap contract and assigns **`ContractIdentifier`** when missing (e.g. first trade with no prior
+        `tradeIdString`). For async messaging, this object is the preferred **`BusinessEvent.payload`** for full capture.
+      required:
+        - swapContracts
+      properties:
+        blotterId:
+          type: string
+          description: Optional identifier assigned by trade capture for audit and idempotency with lifecycle.
+        captureCorrelationId:
+          type: string
+          description: |
+            Correlates this blotter with lifecycle processing when contract id is assigned asynchronously; use when
+            `ContractIdentifier` is absent on first trade.
+        enrichmentStatus:
+          type: string
+          description: Result of reference-data enrichment (e.g. COMPLETE, PARTIAL, FAILED).
+          enum: [COMPLETE, PARTIAL, FAILED, PENDING]
+        workflowStatus:
+          type: string
+          description: Rule outcome before lifecycle (e.g. APPROVED, PENDING_APPROVAL, REJECTED).
+          enum: [APPROVED, PENDING_APPROVAL, REJECTED]
+        processingMetadata:
+          type: object
+          description: Optional rules version, timings, source message ids.
+          additionalProperties: true
+        swapContracts:
+          type: array
+          description: One or more contracts carried on this blotter (1:M). Lifecycle creates/updates each as appropriate.
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/SwapContract'
+
+    BusinessEvent:
+      type: object
+      description: |
+        Envelope for async business exchange (e.g. Solace). Carries routing metadata, correlation, and a typed
+        **payload**. For full trade-capture outcomes, `payload` SHOULD be **SwapBlotter** (egress to lifecycle:
+        one or more contracts, each with positions and nested transactions). Granular **SwapContract**, **SwapPosition**,
+        or **SwapTransaction** snapshots MAY be used for narrower event types.
+      required:
+        - eventId
+        - eventType
+        - eventTime
+        - sourceSystem
+        - payloadSchemaVersion
+        - payload
+        - createdAt
+        - solaceQueueName
+        - solaceDeliveryMode
+      properties:
+        eventId:
+          type: string
+          example: BEV-20260410-0001
+        eventType:
+          type: string
+          example: SwapTransactionBooked
+        eventTime:
+          type: string
+          format: date-time
+        sourceSystem:
+          type: string
+          example: GCAM
+        correlationId:
+          type: string
+        contractIdentifier:
+          type: string
+        positionId:
+          type: string
+        transactionId:
+          type: string
+        status:
+          type: string
+          example: PENDING
+        payloadSchemaVersion:
+          type: string
+          example: "1"
+        payload:
+          description: |
+            Event payload. Prefer **SwapBlotter** for trade-capture → lifecycle handoff (deduplicated Contract → Position → Transaction tree).
+            Granular shapes remain valid for partial lifecycle events.
+          oneOf:
+            - $ref: '#/components/schemas/SwapBlotter'
+            - $ref: '#/components/schemas/SwapContract'
+            - $ref: '#/components/schemas/SwapPosition'
+            - $ref: '#/components/schemas/SwapTransaction'
+        retryCount:
+          type: integer
+          format: int32
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        solaceQueueName:
+          type: string
+          example: Q.SWAP.BUSINESS.EVENTS
+        solaceTopic:
+          type: string
+        solaceDeliveryMode:
+          type: string
+          enum: [persistent, direct]
+          example: persistent
+        solaceTtlSeconds:
+          type: integer
+          format: int32
+        solacePriority:
+          type: integer
+          format: int32
+        solaceMessageId:
+          type: string
+        solaceRedelivered:
+          type: boolean
+        solaceDmqEligible:
+          type: boolean
+        solaceReplyTo:
+          type: string
+        solaceHeaders:
+          type: object
+          additionalProperties:
+            type: string
