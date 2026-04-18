@@ -47,8 +47,8 @@ Source repository: [https://github.com/srviswan/pb-synth-strategic-trade-capture
                      │
 ┌────────────────────▼────────────────────────────────────────┐
 │         Data Provider Layer (Abstraction)                   │
-│  SecurityMasterService (Product/Security lookup)           │
-│  AccountService (Book/Account lookup)                      │
+│  Reference Data Service + client SDK (Security, Account, Book) │
+│  (replaces ad-hoc SecurityMaster / Account lookups per service) │
 │  StateRepository (partition state management)               │
 │  RulesRepository (in-memory cache of active rules)         │
 └────────────────────┬────────────────────────────────────────┘
@@ -86,9 +86,7 @@ Source repository: [https://github.com/srviswan/pb-synth-strategic-trade-capture
    │
 2. Enrichment Phase
    │
-   ├─ Lookup Security/Product (SecurityMasterService)
-   │
-   ├─ Lookup Account/Book (AccountService)
+   ├─ Lookup Security / Account / Book (ReferenceDataClient → Reference Data Service)
    │
    ├─ Populate missing Product details
    │
@@ -1065,6 +1063,7 @@ Paths are relative to the `pb-synth-strategic-trade-capture` repository root.
 - **Cash Flow Service Design**: `docs/cashflow_service_api_design.md`
 - **Contract/Position Service Design**: `docs/contract_position_service_api_design.md`
 - **Trade State Data Model**: `docs/trade_state_data_model.md`
+- **Reference Data Service (masters + SDK)**: `docs/reference_data_service_design.md`
 
 **Note**: Economic and Non-Economic rules are received via API integration from external rule management service. The rule configuration schema and examples are provided for reference to understand the rule structure, but rules are managed dynamically via API endpoints rather than static configuration files.
 

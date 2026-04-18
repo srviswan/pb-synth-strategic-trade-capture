@@ -1,0 +1,37 @@
+# Maven / Java build output
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+
+# Maven wrapper (keep wrapper scripts, ignore downloaded jar cache)
+.mvn/wrapper/maven-wrapper.jar
+
+# IDE / editor
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+.factorypath
+.apt_generated/
+.apt_generated_tests/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Local env
+.env
+.env.local

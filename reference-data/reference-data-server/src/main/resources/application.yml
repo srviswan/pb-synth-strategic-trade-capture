@@ -1,0 +1,39 @@
+server:
+  port: 8090
+
+spring:
+  application:
+    name: reference-data-server
+
+refdata:
+  account:
+    sync:
+      # Enable when an external account feed is configured (see source.*). Tests force this off.
+      enabled: false
+      # Six-field cron (second minute hour day month weekday): every hour at minute 0.
+      cron: "0 0 * * * *"
+    source:
+      base-url: http://127.0.0.1:9999
+      path: /accounts
+      connect-timeout-ms: 5000
+      read-timeout-ms: 15000
+  datasource:
+    security:
+      jdbc-url: jdbc:h2:mem:refdata_security;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE
+      username: sa
+      password: ""
+      driver-class-name: org.h2.Driver
+    account:
+      jdbc-url: jdbc:h2:mem:refdata_account;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE
+      username: sa
+      password: ""
+      driver-class-name: org.h2.Driver
+    book:
+      jdbc-url: jdbc:h2:mem:refdata_book;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE
+      username: sa
+      password: ""
+      driver-class-name: org.h2.Driver
+
+logging:
+  level:
+    com.pbsynth.referencedata: INFO
