@@ -1,0 +1,353 @@
+# Trade Capture Rules & Workflow Engine – Design Document
+
+## 1. Overview
+
+This document defines the architecture and implementation design for a scalable, deterministic, and auditable trade capture rules and workflow engine supporting:
+
+- Economic rules (Trader-owned)
+- Non-economic validation rules (Middle Office)
+- Workflow orchestration rules (Tech Ops)
+
+The system is designed to:
+- Scale horizontally
+- Support strict idempotency
+- Enable deterministic replay (critical for regulatory compliance)
+- Provide full auditability and explainability
+
+---
+
+## 2. Architectural Principles
+
+### 2.1 Determinism
+- Same input + same rule versions = identical output
+- No runtime randomness or system-time dependencies
+
+### 2.2 Separation of Concerns
+- Rules ≠ Workflow ≠ Selection
+- Each domain is independently versioned and governed
+
+### 2.3 Immutability
+- Rules and bundles are versioned and never mutated
+- Trade binds to versions at execution time
+
+### 2.4 Replayability
+- Every trade event stores rule bundle versions
+- Replay uses exact same versions
+
+---
+
+## 3. High-Level Architecture
+
+text Trade Capture API       ↓ Idempotency Layer       ↓ Bundle Selection Engine       ↓ Rules Engine (Validation → Economic)       ↓ Persist Trade + Rule Context       ↓ Workflow Engine (DSL → Execution) 
+
+---
+
+## 4. Domain Separation
+
+| Domain        | Owner         | Purpose                        |
+|--------------|--------------|--------------------------------|
+| Economic     | Traders       | Pricing, adjustments           |
+| Validation   | Middle Office | Compliance, rejection rules    |
+| Workflow     | Tech Ops      | Routing, orchestration         |
+
+---
+
+## 5. DSL Design
+
+### 5.1 Economic DSL
+
+text RULE dividend_adjustment WHEN trade.dividend_yield > 0 THEN trade.adjusted_notional = trade.notional * (1 - trade.dividend_yield) 
+
+Constraints:
+- Pure functions only
+- No external calls
+- Deterministic execution
+
+---
+
+### 5.2 Validation DSL
+
+text RULE restricted_counterparty WHEN trade.counterparty IN ["ABC","XYZ"] THEN REJECT "Restricted counterparty" 
+
+Actions:
+- REJECT
+- FLAG
+- WARN
+- REQUIRE_APPROVAL
+
+---
+
+### 5.3 Workflow DSL
+
+text FLOW trade_capture_flow STEP validate CALL validation_service STEP enrich CALL enrichment_service STEP send_ccp PUBLISH ccp_topic STEP wait_ccp WAIT_FOR ccp_ack timeout=5s STEP report PUBLISH reporting_topic 
+
+---
+
+## 6. Storage Model
+
+### 6.1 rule_definition
+
+Stores individual rules.
+
+sql rule_id, rule_domain, version, rule_definition, status 
+
+---
+
+### 6.2 rule_bundle
+
+Logical grouping of rules.
+
+sql bundle_id, rule_domain, version, status 
+
+---
+
+### 6.3 rule_bundle_mapping
+
+Maps rules to bundles.
+
+sql bundle_id, bundle_version, rule_id, rule_version, execution_order 
+
+---
+
+### 6.4 trade_rule_context (CRITICAL)
+
+Stores rule versions used for each trade event.
+
+sql trade_id, event_version, economic_bundle, validation_bundle, workflow_bundle 
+
+Purpose:
+- Enables replay
+- Enables audit
+
+---
+
+### 6.5 rule_execution_log
+
+Execution trace.
+
+sql trade_id, rule_id, version, outcome, message, executed_at 
+
+---
+
+### 6.6 workflow_definition
+
+Stores workflow DSL and compiled IR.
+
+sql flow_id, version, dsl_definition, compiled_ir 
+
+---
+
+## 7. Rule Execution Engine
+
+### 7.1 Execution Flow
+
+text Load bundle → compile DSL → cache AST → execute rules 
+
+---
+
+### 7.2 Core Components
+
+- Parser (DSL → AST)
+- Compiler (AST → executable)
+- Execution Engine
+- Cache layer
+
+---
+
+### 7.3 Execution Logic
+
+java for (CompiledRule rule : rules) {     result = rule.execute(context);      if (result.action == REJECT) break; } 
+
+---
+
+### 7.4 Caching Strategy
+
+- Cache compiled rules by bundle version
+- No DB calls during execution
+- Optional distributed cache (Hazelcast)
+
+---
+
+## 8. Dynamic Bundle Selection
+
+### 8.1 Purpose
+
+Select correct rule bundle based on trade attributes.
+
+---
+
+### 8.2 Selector Table
+
+sql selector_id, domain, product_type, region, counterparty, min_notional, max_notional, bundle_id, bundle_version, priority, effective_from, effective_to 
+
+---
+
+### 8.3 Selection Algorithm
+
+1. Filter matching selectors
+2. Sort by:
+   - priority DESC
+   - specificity DESC
+   - created_at DESC
+   - selector_id ASC
+3. Pick first
+
+---
+
+### 8.4 Specificity Scoring
+
+text counterparty → +50 book         → +30 region       → +20 product      → +10 notional     → +5 
+
+---
+
+### 8.5 Conflict Handling
+
+- Detect overlapping selectors at config time
+- Reject ambiguous configurations
+
+---
+
+### 8.6 Persist Selection
+
+text trade_rule_context ← selected bundle versions 
+
+---
+
+## 9. Workflow Execution (DSL → Runtime)
+
+### 9.1 Approach
+
+- DSL parsed into AST
+- Converted to Intermediate Representation (IR)
+- Executed via interpreter pattern
+
+---
+
+### 9.2 Execution Mapping
+
+| DSL         | Runtime Mapping      |
+|------------|---------------------|
+| CALL        | Activity            |
+| PUBLISH     | Activity            |
+| WAIT_FOR    | Signal/Await        |
+| IF          | Deterministic logic |
+
+---
+
+### 9.3 Key Constraints
+
+- No direct I/O inside workflow logic
+- All external calls via activities
+- Deterministic branching only
+
+---
+
+## 10. Idempotency Design
+
+### 10.1 Key
+
+text idempotency_key = hash(source_id + version) 
+
+---
+
+### 10.2 Storage
+
+- Redis (fast lookup)
+- SQL (durable audit)
+
+---
+
+## 11. Replay Strategy
+
+### 11.1 Process
+
+text Fetch trade_rule_context Load same bundles Re-execute rules + workflow 
+
+---
+
+### 11.2 Guarantees
+
+- Deterministic output
+- Full audit trace
+
+---
+
+## 12. Entitlement Model
+
+| Role          | Permissions                  |
+|--------------|-----------------------------|
+| Trader        | Economic rules              |
+| Middle Office | Validation rules            |
+| Tech Ops      | Workflow rules              |
+| Admin         | Approval + override         |
+
+---
+
+## 13. Governance
+
+### 13.1 Rule Lifecycle
+
+text DRAFT → APPROVED → ACTIVE → RETIRED 
+
+---
+
+### 13.2 Approval Flow
+
+- Economic rules require risk approval
+- Validation rules require compliance approval
+- Workflow rules require ops approval
+
+---
+
+## 14. Performance & Scalability
+
+- Stateless services
+- Horizontal scaling
+- In-memory rule execution
+- Precompiled DSL
+- Event-driven integration
+
+---
+
+## 15. Failure Handling
+
+### 15.1 Validation
+- Fail fast on REJECT
+
+### 15.2 Workflow
+- Retry + timeout handling
+- Compensation logic
+
+---
+
+## 16. Anti-Patterns to Avoid
+
+- Mixing rule domains
+- Executing DSL directly from DB
+- Embedding workflow in rules
+- Non-deterministic logic
+- Missing version binding
+
+---
+
+## 17. Summary
+
+This design provides:
+
+- Deterministic, replayable rule execution
+- Strong domain separation
+- Scalable architecture
+- Full auditability
+- Flexible rule governance
+
+---
+
+## 18. Next Steps
+
+1. Implement DSL parser (start simple → evolve to ANTLR)
+2. Build Rule Engine Service (Spring Boot)
+3. Implement Bundle Selection Engine
+4. Integrate Workflow Engine
+5. Build Governance APIs + UI
+
+---
